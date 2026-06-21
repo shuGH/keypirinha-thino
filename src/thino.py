@@ -23,7 +23,7 @@ class ThinoMemo(kp.Plugin):
         (
             "enabled",
             "item_label",
-            "folder",
+            "vault_folder",
             "file_path",
             "memo_template",
             "note_template",
@@ -56,8 +56,8 @@ class ThinoMemo(kp.Plugin):
                 continue
 
             desc_parts = []
-            if section.folder:
-                desc_parts.append(section.folder)
+            if section.vault_folder:
+                desc_parts.append(section.vault_folder)
             if section.file_path:
                 desc_parts.append(section.file_path)
 
@@ -93,10 +93,10 @@ class ThinoMemo(kp.Plugin):
         entry = self._prepare_memo_entry(section, memo_text)
 
         desc_parts = []
-        if section.folder:
-            desc_parts.append(section.folder)
-        if section.file_path:
-            desc_parts.append(section.file_path)
+            if section.vault_folder:
+                desc_parts.append(section.vault_folder)
+            if section.file_path:
+                desc_parts.append(section.file_path)
 
         suggestion = self.create_item(
             category=kp.ItemCategory.USER_BASE,
@@ -173,7 +173,7 @@ class ThinoMemo(kp.Plugin):
         item_label = settings.get_stripped(
             "item_label", section=section_label, fallback=display_name or fallback.item_label
         )
-        folder = settings.get_stripped("folder", section=section_label, fallback=fallback.folder)
+        vault_folder = settings.get_stripped("vault_folder", section=section_label, fallback=fallback.vault_folder)
         file_path = settings.get_stripped("file_path", section=section_label, fallback=fallback.file_path)
         memo_template = settings.get_stripped(
             "memo_template", section=section_label, fallback=fallback.memo_template
@@ -188,7 +188,7 @@ class ThinoMemo(kp.Plugin):
         return self.Section(
             enabled,
             item_label,
-            folder,
+            vault_folder,
             file_path,
             memo_template,
             note_template,
@@ -273,7 +273,7 @@ class ThinoMemo(kp.Plugin):
         if not relative_path:
             relative_path = now.strftime(self.DEFAULT_SECTION.file_path)
 
-        folder = self._expand_path(section.folder)
+        folder = self._expand_path(section.vault_folder)
         if folder:
             return os.path.abspath(os.path.normpath(os.path.join(folder, relative_path)))
         return os.path.abspath(os.path.normpath(relative_path))
