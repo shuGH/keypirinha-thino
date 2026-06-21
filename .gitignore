@@ -31,3 +31,8 @@ $RECYCLE.BIN/
 build/
 resorce/
 ACCESS_TOKEN
+
+### Tests ###
+tests/tmp/
+tests/__pycache__/
+src/__pycache__/

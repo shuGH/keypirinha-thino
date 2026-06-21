@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "thino-memo"
+version = "0.1.0"
+description = "Keypirinha plugin to append Thino-style memos"
+authors = ["Shuzo Iwasaki <shu1510@gmail.com>"]
+packages = [
+  { include = "src" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.0"
+
+[tool.pytest.ini_options]
+pythonpath = ["tests/stubs"]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["poetry-core>=1.5.0"]
+build-backend = "poetry.core.masonry.api"
