@@ -13,8 +13,11 @@ class _MissingToken(dict):
 
 
 class ThinoMemo(kp.Plugin):
-    """Thinoメモの雛形。詳細実装はTODOで埋める。"""
+    """Obsidian/Thinoスタイルのメモを Keypirinha から追記するプラグイン
 
+    カタログ登録→入力→ファイル追記の順で処理を進める構成を採用し、各種設定を Section で集約しています"""
+
+    # 各カスタムラベルの設定を保持するための構造体定義
     Section = namedtuple(
         "Section",
         (
@@ -33,16 +36,20 @@ class ThinoMemo(kp.Plugin):
 
     DEFAULT_SECTION = Section(True, "Thino: Memo", "", "{date}.md", "[{timestamp}] {memo}", "", False)
 
+    # インスタンス生成時の状態初期化
     def __init__(self):
         super().__init__()
         self._sections = []
 
+    # 起動時に設定を読み込み、セクション情報を構築します
     def on_start(self):
         settings = self.load_settings()
         self._sections = self._build_sections_from_settings(settings)
         self.dbg("Loaded sections", len(self._sections))
 
+    # 設定済みのセクションをカタログアイテムとして登録します
     def on_catalog(self):
+        # 設定された Section を KEYWORD カテゴリでカタログ登録
         catalog = []
         for idx, section in enumerate(self._sections):
             if not section.item_label:
@@ -67,7 +74,9 @@ class ThinoMemo(kp.Plugin):
 
         self.set_catalog(catalog)
 
+    # 入力中テキストからメモ候補生成と候補リスト返却
     def on_suggest(self, user_input, items_chain):
+        # 最後のカタログ項目を基点とした候補生成
         if not items_chain:
             return 0
 
@@ -102,6 +111,7 @@ class ThinoMemo(kp.Plugin):
         self.set_suggestions([suggestion], kp.Match.ANY, kp.Sort.SCORE_DESC)
         return 1
 
+    # 確定項目に対するファイル書き換えとパスコピー
     def on_execute(self, item, action):
         section_idx, metadata = self._decode_item_data_bag(item.data_bag())
         if section_idx is None or section_idx >= len(self._sections):
@@ -116,13 +126,15 @@ class ThinoMemo(kp.Plugin):
         entry = self._prepare_memo_entry(section, memo_text, now)
         target_path = self._build_target_path(section, now)
         if not target_path:
-            self.warn("セクション '{}' のファイルパスが不正です。".format(section.item_label))
+            self.warn("セクション '{}' のファイルパスが不正です".format(section.item_label))
             return
 
         self._seed_note_template(target_path, section, memo_text, now)
         self._append_to_file(target_path, entry, section.ensure_blank_line)
+        # 処理完了後に対象ファイルパスをクリップボードへコピーする
         kpu.set_clipboard(target_path)
 
+    # 外部設定変更時のセクション再読み込み
     def on_events(self, flags):
         if flags & (kp.Events.APPCONFIG | kp.Events.PACKCONFIG | kp.Events.NETOPTIONS):
             settings = self.load_settings()
@@ -132,7 +144,9 @@ class ThinoMemo(kp.Plugin):
 
     # @TODO: 以下の補助関数を必要に応じて追加
 
+    # 設定ファイルから Section リスト構築
     def _build_sections_from_settings(self, settings):
+        # 設定からセクション一覧を構築し、custom_item/* を複数追加できる形にします
         sections = []
         default_section = self._create_section(settings, self.CONFIG_SECTION_DEFAULTS, self.DEFAULT_SECTION)
         if default_section.enabled:
@@ -153,6 +167,7 @@ class ThinoMemo(kp.Plugin):
 
         return sections
 
+    # 個別セクション設定の取得と Section まとめ
     def _create_section(self, settings, section_label, fallback, display_name=None):
         enabled = settings.get_bool("enable", section=section_label, fallback=fallback.enabled)
         item_label = settings.get_stripped(
@@ -180,13 +195,16 @@ class ThinoMemo(kp.Plugin):
             ensure_blank_line,
         )
 
+    # memo_template 適用による追記文字列整形
     def _prepare_memo_entry(self, section, memo_text, now=None):
         now = now or datetime.datetime.now()
         template = section.memo_template or self.DEFAULT_SECTION.memo_template
         formatted = self._format_template(template, memo_text, now)
         return formatted or memo_text
 
+    # ファイル末尾追記時のディレクトリ・空行処理
     def _append_to_file(self, path, entry, ensure_blank_line):
+        # まずディレクトリを書き出し可能な状態にしてから追記します
         self._ensure_directory(path)
         needs_blank = False
         if ensure_blank_line and os.path.exists(path):
@@ -205,6 +223,7 @@ class ThinoMemo(kp.Plugin):
                 f.write("\n")
             f.write(final_entry)
 
+    # data_bag からセクション番号とメタ情報抽出
     def _decode_item_data_bag(self, data_bag):
         if not data_bag:
             return None, {}
@@ -231,6 +250,7 @@ class ThinoMemo(kp.Plugin):
 
         return section_idx, decoded
 
+    # strftime＋format_map によるテンプレート評価
     def _format_template(self, template, memo_text, now):
         if not template:
             return ""
@@ -238,6 +258,7 @@ class ThinoMemo(kp.Plugin):
         formatted = now.strftime(template)
         return formatted.format_map(_MissingToken(context))
 
+    # テンプレート用プレースホルダ辞書生成
     def _build_template_context(self, memo_text, now):
         return {
             "memo": memo_text,
@@ -245,6 +266,7 @@ class ThinoMemo(kp.Plugin):
             "date": now.strftime("%Y-%m-%d"),
         }
 
+    # Section folder/file_path からファイルパス組み立て
     def _build_target_path(self, section, now):
         file_template = section.file_path or self.DEFAULT_SECTION.file_path
         relative_path = now.strftime(file_template) if file_template else ""
@@ -256,6 +278,7 @@ class ThinoMemo(kp.Plugin):
             return os.path.abspath(os.path.normpath(os.path.join(folder, relative_path)))
         return os.path.abspath(os.path.normpath(relative_path))
 
+    # 環境変数・ホームディレクトリを含む値展開
     def _expand_path(self, value):
         if not value:
             return ""
@@ -263,17 +286,21 @@ class ThinoMemo(kp.Plugin):
         expanded = os.path.expandvars(expanded)
         return self._expand_env_placeholders(expanded)
 
+    # ${env:VAR} 形式を環境変数値へ置換
     def _expand_env_placeholders(self, value):
         pattern = re.compile(r"\$\{env:([^}]+)\}")
         return pattern.sub(lambda m: os.environ.get(m.group(1), ""), value)
 
+    # パス先ディレクトリ作成
     def _ensure_directory(self, path):
         directory = os.path.dirname(path)
         if not directory:
             return
         os.makedirs(directory, exist_ok=True)
 
+    # note_template によるファイル先行作成
     def _seed_note_template(self, path, section, memo_text, now):
+        # note_template を埋めてファイルの雛形を作ったうえで本文を処理します
         if os.path.exists(path):
             return
 
