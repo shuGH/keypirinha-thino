@@ -1,7 +1,15 @@
 import datetime
+import os
+import re
+
 import keypirinha as kp
 import keypirinha_util as kpu
 from collections import namedtuple
+
+
+class _MissingToken(dict):
+    def __missing__(self, key):
+        return "{" + key + "}"
 
 
 class ThinoMemo(kp.Plugin):
@@ -64,7 +72,7 @@ class ThinoMemo(kp.Plugin):
             return 0
 
         last_item = items_chain[-1]
-        section_idx = self._parse_section_index(last_item.data_bag())
+        section_idx, _ = self._decode_item_data_bag(last_item.data_bag())
         if section_idx is None or section_idx >= len(self._sections):
             return 0
 
@@ -95,8 +103,25 @@ class ThinoMemo(kp.Plugin):
         return 1
 
     def on_execute(self, item, action):
-        # @TODO: 選ばれたメモを対象ファイルへ追記し、パスをクリップボードへ
-        pass
+        section_idx, metadata = self._decode_item_data_bag(item.data_bag())
+        if section_idx is None or section_idx >= len(self._sections):
+            return
+
+        memo_text = metadata.get("memo", "") if metadata else ""
+        if not memo_text or not memo_text.strip():
+            return
+
+        section = self._sections[section_idx]
+        now = datetime.datetime.now()
+        entry = self._prepare_memo_entry(section, memo_text, now)
+        target_path = self._build_target_path(section, now)
+        if not target_path:
+            self.warn("セクション '{}' のファイルパスが不正です。".format(section.item_label))
+            return
+
+        self._seed_note_template(target_path, section, memo_text, now)
+        self._append_to_file(target_path, entry, section.ensure_blank_line)
+        kpu.set_clipboard(target_path)
 
     def on_events(self, flags):
         if flags & (kp.Events.APPCONFIG | kp.Events.PACKCONFIG | kp.Events.NETOPTIONS):
@@ -155,40 +180,113 @@ class ThinoMemo(kp.Plugin):
             ensure_blank_line,
         )
 
-    def _prepare_memo_entry(self, section, memo_text):
-        now = datetime.datetime.now()
+    def _prepare_memo_entry(self, section, memo_text, now=None):
+        now = now or datetime.datetime.now()
         template = section.memo_template or self.DEFAULT_SECTION.memo_template
-        applied = now.strftime(template)
-
-        class _SafeDict(dict):
-            def __missing__(self, key):
-                return "{" + key + "}"
-
-        values = _SafeDict(
-            memo=memo_text,
-            timestamp=now.strftime("%Y-%m-%d %H:%M"),
-            date=now.strftime("%Y-%m-%d"),
-        )
-
-        return applied.format_map(values)
-
-    def _parse_section_index(self, data_bag):
-        if not data_bag:
-            return None
-
-        try:
-            return int(data_bag)
-        except (TypeError, ValueError):
-            decoded = kpu.kwargs_decode(data_bag)
-            if not isinstance(decoded, dict):
-                return None
-
-            section_value = decoded.get("section")
-            try:
-                return int(section_value)
-            except (TypeError, ValueError):
-                return None
+        formatted = self._format_template(template, memo_text, now)
+        return formatted or memo_text
 
     def _append_to_file(self, path, entry, ensure_blank_line):
-        # @TODO: ディレクトリ作成 → ファイル追記を実装
-        pass
+        self._ensure_directory(path)
+        needs_blank = False
+        if ensure_blank_line and os.path.exists(path):
+            try:
+                with open(path, "rb") as f:
+                    f.seek(0, os.SEEK_END)
+                    if f.tell():
+                        f.seek(-1, os.SEEK_END)
+                        needs_blank = f.read(1) not in (b"\n", b"\r")
+            except OSError:
+                needs_blank = False
+
+        final_entry = entry if entry.endswith("\n") else entry + "\n"
+        with open(path, "a", encoding="utf-8") as f:
+            if needs_blank:
+                f.write("\n")
+            f.write(final_entry)
+
+    def _decode_item_data_bag(self, data_bag):
+        if not data_bag:
+            return None, {}
+
+        try:
+            section_idx = int(data_bag)
+            return section_idx, {}
+        except (TypeError, ValueError):
+            pass
+
+        try:
+            decoded = kpu.kwargs_decode(data_bag)
+        except Exception:
+            return None, {}
+
+        if not isinstance(decoded, dict):
+            return None, {}
+
+        section_value = decoded.get("section")
+        try:
+            section_idx = int(section_value)
+        except (TypeError, ValueError):
+            section_idx = None
+
+        return section_idx, decoded
+
+    def _format_template(self, template, memo_text, now):
+        if not template:
+            return ""
+        context = self._build_template_context(memo_text, now)
+        formatted = now.strftime(template)
+        return formatted.format_map(_MissingToken(context))
+
+    def _build_template_context(self, memo_text, now):
+        return {
+            "memo": memo_text,
+            "timestamp": now.strftime("%Y-%m-%d %H:%M"),
+            "date": now.strftime("%Y-%m-%d"),
+        }
+
+    def _build_target_path(self, section, now):
+        file_template = section.file_path or self.DEFAULT_SECTION.file_path
+        relative_path = now.strftime(file_template) if file_template else ""
+        if not relative_path:
+            relative_path = now.strftime(self.DEFAULT_SECTION.file_path)
+
+        folder = self._expand_path(section.folder)
+        if folder:
+            return os.path.abspath(os.path.normpath(os.path.join(folder, relative_path)))
+        return os.path.abspath(os.path.normpath(relative_path))
+
+    def _expand_path(self, value):
+        if not value:
+            return ""
+        expanded = os.path.expanduser(value)
+        expanded = os.path.expandvars(expanded)
+        return self._expand_env_placeholders(expanded)
+
+    def _expand_env_placeholders(self, value):
+        pattern = re.compile(r"\$\{env:([^}]+)\}")
+        return pattern.sub(lambda m: os.environ.get(m.group(1), ""), value)
+
+    def _ensure_directory(self, path):
+        directory = os.path.dirname(path)
+        if not directory:
+            return
+        os.makedirs(directory, exist_ok=True)
+
+    def _seed_note_template(self, path, section, memo_text, now):
+        if os.path.exists(path):
+            return
+
+        template = section.note_template
+        if not template:
+            return
+
+        content = self._format_template(template, memo_text, now)
+        if not content:
+            return
+
+        self._ensure_directory(path)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+            if not content.endswith("\n"):
+                f.write("\n")
