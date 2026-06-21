@@ -34,8 +34,29 @@ class ThinoMemo(kp.Plugin):
         self.dbg("Loaded sections", len(self._sections))
 
     def on_catalog(self):
-        # @TODO: カタログに表示するアイテムを作って `set_catalog` する
-        pass
+        catalog = []
+        for idx, section in enumerate(self._sections):
+            if not section.item_label:
+                continue
+
+            desc_parts = []
+            if section.folder:
+                desc_parts.append(section.folder)
+            if section.file_path:
+                desc_parts.append(section.file_path)
+
+            item = self.create_item(
+                category=kp.ItemCategory.KEYWORD,
+                label=section.item_label,
+                short_desc=" / ".join(desc_parts),
+                target=f"thino:{idx}",
+                args_hint=kp.ItemArgsHint.ACCEPTED,
+                hit_hint=kp.ItemHitHint.KEEPALL,
+                data_bag=str(idx),
+            )
+            catalog.append(item)
+
+        self.set_catalog(catalog)
 
     def on_suggest(self, user_input, items_chain):
         # @TODO: ユーザー入力からメモ候補を作成し `set_suggestions` で返す
