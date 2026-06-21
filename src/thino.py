@@ -1,3 +1,4 @@
+import datetime
 import keypirinha as kp
 import keypirinha_util as kpu
 from collections import namedtuple
@@ -59,8 +60,39 @@ class ThinoMemo(kp.Plugin):
         self.set_catalog(catalog)
 
     def on_suggest(self, user_input, items_chain):
-        # @TODO: ユーザー入力からメモ候補を作成し `set_suggestions` で返す
-        pass
+        if not items_chain:
+            return 0
+
+        last_item = items_chain[-1]
+        section_idx = self._parse_section_index(last_item.data_bag())
+        if section_idx is None or section_idx >= len(self._sections):
+            return 0
+
+        memo_text = user_input
+        if not memo_text.strip():
+            return 0
+
+        section = self._sections[section_idx]
+        entry = self._prepare_memo_entry(section, memo_text)
+
+        desc_parts = []
+        if section.folder:
+            desc_parts.append(section.folder)
+        if section.file_path:
+            desc_parts.append(section.file_path)
+
+        suggestion = self.create_item(
+            category=kp.ItemCategory.USER_BASE,
+            label=entry,
+            short_desc=" / ".join(desc_parts) if desc_parts else "Thino memo",
+            target=last_item.target(),
+            args_hint=kp.ItemArgsHint.NOARGS,
+            hit_hint=kp.ItemHitHint.KEEPALL,
+            data_bag=kpu.kwargs_encode(section=section_idx, memo=memo_text),
+        )
+
+        self.set_suggestions([suggestion], kp.Match.ANY, kp.Sort.SCORE_DESC)
+        return 1
 
     def on_execute(self, item, action):
         # @TODO: 選ばれたメモを対象ファイルへ追記し、パスをクリップボードへ
@@ -124,8 +156,38 @@ class ThinoMemo(kp.Plugin):
         )
 
     def _prepare_memo_entry(self, section, memo_text):
-        # @TODO: `memo_template` から行を整形する
-        return memo_text
+        now = datetime.datetime.now()
+        template = section.memo_template or self.DEFAULT_SECTION.memo_template
+        applied = now.strftime(template)
+
+        class _SafeDict(dict):
+            def __missing__(self, key):
+                return "{" + key + "}"
+
+        values = _SafeDict(
+            memo=memo_text,
+            timestamp=now.strftime("%Y-%m-%d %H:%M"),
+            date=now.strftime("%Y-%m-%d"),
+        )
+
+        return applied.format_map(values)
+
+    def _parse_section_index(self, data_bag):
+        if not data_bag:
+            return None
+
+        try:
+            return int(data_bag)
+        except (TypeError, ValueError):
+            decoded = kpu.kwargs_decode(data_bag)
+            if not isinstance(decoded, dict):
+                return None
+
+            section_value = decoded.get("section")
+            try:
+                return int(section_value)
+            except (TypeError, ValueError):
+                return None
 
     def _append_to_file(self, path, entry, ensure_blank_line):
         # @TODO: ディレクトリ作成 → ファイル追記を実装
