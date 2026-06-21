@@ -2,7 +2,6 @@ import configparser
 import datetime
 import os
 from pathlib import Path
-import tempfile
 
 import pytest
 
@@ -65,10 +64,10 @@ def test_prepare_memo_entry_records_timestamp(example_section):
 
 
 def test_build_target_path_respects_folder_and_template(tmp_path, example_section):
-    customized = example_section._replace(folder=str(tmp_path))
+    customized = example_section._replace(vault_folder=str(tmp_path))
     path = thino.ThinoMemo()._build_target_path(customized, datetime.datetime(2026, 1, 2))
-    print("build_target_path", customized.folder, customized.file_path, "->", path)
-    assert path.endswith(os.path.join("2026", "01", "example-02.md") if "example" in customized.file_path else customized.file_path)
+    print("build_target_path", customized.vault_folder, customized.file_path, "->", path)
+    assert path.endswith(os.path.join("2026", "01", "2026-01-02.md"))
 
 
 def test_append_to_file_records_entry_with_timestamp(tmp_path, example_section):

@@ -93,10 +93,10 @@ class ThinoMemo(kp.Plugin):
         entry = self._prepare_memo_entry(section, memo_text)
 
         desc_parts = []
-            if section.vault_folder:
-                desc_parts.append(section.vault_folder)
-            if section.file_path:
-                desc_parts.append(section.file_path)
+        if section.vault_folder:
+            desc_parts.append(section.vault_folder)
+        if section.file_path:
+            desc_parts.append(section.file_path)
 
         suggestion = self.create_item(
             category=kp.ItemCategory.USER_BASE,
@@ -274,9 +274,11 @@ class ThinoMemo(kp.Plugin):
             relative_path = now.strftime(self.DEFAULT_SECTION.file_path)
 
         folder = self._expand_path(section.vault_folder)
-        if folder:
-            return os.path.abspath(os.path.normpath(os.path.join(folder, relative_path)))
-        return os.path.abspath(os.path.normpath(relative_path))
+        if not folder:
+            self.warn("セクション '{}' に vault_folder が未設定のためファイルパスを計算できません".format(section.item_label))
+            return ""
+
+        return os.path.abspath(os.path.normpath(os.path.join(folder, relative_path)))
 
     # 環境変数・ホームディレクトリを含む値展開
     def _expand_path(self, value):
