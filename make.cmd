@@ -1,32 +1,60 @@
 @echo off
 setlocal
 
-set PACKAGE_NAME=Codic
+set PACKAGE_NAME=ThinoMemo
 REM set INSTALL_DIR=%APPDATA%\Keypirinha\InstalledPackages
 set INSTALL_DIR=C:\Applications\Keypirinha\portable\Profile\InstalledPackages
+set LIVEPACKAGES_DIR=C:\Applications\Keypirinha\portable\Profile\Packages
 set KEYPIRINHA_SDK_DIRECT=..\Sdk
 
 if "%1"=="" goto help
 if "%1"=="-h" goto help
 if "%1"=="--help" goto help
-if "%1"=="help" (
-    :help
-    echo Usage:
-    echo   make help
-    echo   make clean
-    echo   make build
-    echo   make install
-    echo   make py [python_args]
-    echo   make env
-    echo   make deploy
-    goto end
-)
+if "%1"=="help" goto help
+goto command
 
-REM 環境変数の設定
+:help
+echo Usage:
+echo   make help              : Show this help message
+echo   make clean             : Remove the build output directory
+echo   make build             : Build the Keypirinha package (includes LICENSE*, README*, and src)
+echo   make install           : Copy the built .keypirinha-package to InstalledPackages
+echo   make live              : Create a junction in Keypirinha LivePackages
+echo   make unlive            : Remove the LivePackages junction
+echo   make py [python_args]  : Run the Keypirinha SDK Python environment (kpy)
+echo   make env               : Set up the Keypirinha SDK environment
+echo   make deploy            : Run build and install
+goto end
+
+:command
 if "%1"=="env" (
     REM pushd "%~dp0"
     call "%KEYPIRINHA_SDK_DIRECT%\cmd\kpenv.cmd"
     REM popd
+    goto end
+)
+
+if "%1"=="live" (
+    if not exist "%LIVEPACKAGES_DIR%" mkdir "%LIVEPACKAGES_DIR%"
+
+    if exist "%LIVEPACKAGES_DIR%\%PACKAGE_NAME%" (
+        echo ERROR: Live package already exists:
+        echo   "%LIVEPACKAGES_DIR%\%PACKAGE_NAME%"
+        exit /b 1
+    )
+
+    mklink /J "%LIVEPACKAGES_DIR%\%PACKAGE_NAME%" "%~dp0src"
+    goto end
+)
+
+if "%1"=="unlive" (
+    if not exist "%LIVEPACKAGES_DIR%\%PACKAGE_NAME%" (
+        echo Live package junction does not exist:
+        echo   "%LIVEPACKAGES_DIR%\%PACKAGE_NAME%"
+        goto end
+    )
+
+    rmdir "%LIVEPACKAGES_DIR%\%PACKAGE_NAME%"
     goto end
 )
 
@@ -82,7 +110,6 @@ if "%1"=="py" (
     goto end
 )
 
-REM BuildしてInstall
 if "%1"=="deploy" (
     call %0 build
     call %0 install
