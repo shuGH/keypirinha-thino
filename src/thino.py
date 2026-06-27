@@ -115,20 +115,9 @@ class Thino(kp.Plugin):
         if not items_chain:
             return 0
 
-        def get_section(item):
-            try:
-                section_index = int(item.target())
-            except ValueError:
-                return None, None
-
-            if section_index < 0 or section_index >= len(self._sections):
-                return None, None
-
-            return section_index, self._sections[section_index]
-
         last_item = items_chain[-1]
         memo = user_input.strip()
-        section_index, section = get_section(last_item)
+        section_index, section = self._get_section(last_item)
 
         # バリデーション
         if not len(memo):
@@ -157,10 +146,29 @@ class Thino(kp.Plugin):
 
     # アイテム選択時
     def on_execute(self, item, action):
-        # @TODO: Action毎に処理を実装する
-        # @TODO: メモの追記
-        # @TODO: Obsidianを開く
-        pass
+        memo = item.data_bag()
+        section_index, section = self._get_section(item)
+        action_name = action.name() if action else self.ACTION_APPEND
+
+        # バリデーション
+        if not len(memo):
+            self.warn("Memo is empty.")
+            return 0
+
+        if section is None:
+            self.warn("Invalid section: {}".format(item.target()))
+            return 0
+
+        # アクションの分岐
+        if action_name == self.ACTION_APPEND:
+            self._append_memo(section, memo, False)
+        elif action_name == self.ACTION_APPEND_AND_OPEN:
+            self._append_memo(section, memo, True)
+        else:
+            self.warn("Unknown action: {}".format(action_name))
+            return 0
+
+        return 1
 
     # 何かしらのイベント発生時
     def on_events(self, flags):
@@ -215,7 +223,19 @@ class Thino(kp.Plugin):
 
         self.dbg("Loaded config sections: {}".format(name_text))
 
-    # メモをフォーマットする
+    # アイテムから設定項目を取得
+    def _get_section(self, item):
+        try:
+            section_index = int(item.target())
+        except ValueError:
+            return None, None
+
+        if section_index < 0 or section_index >= len(self._sections):
+            return None, None
+
+        return section_index, self._sections[section_index]
+
+    # メモをフォーマット
     def _format_memo(self, section, memo, now=None):
         if now is None:
             now = datetime.datetime.now()
@@ -230,3 +250,10 @@ class Thino(kp.Plugin):
 
         self.dbg("Formatted memo: {}".format(formatted))
         return formatted
+
+    # メモの追記
+    def _append_memo(self, section, memo, needs_open):
+        formatted = self._format_memo(section, memo)
+        self.dbg("Append memo: {}".format(formatted))
+        self.dbg("Open after append: {}".format(needs_open))
+
