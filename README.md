@@ -27,6 +27,8 @@ Thino：https://github.com/Quorafind/Obsidian-Thino
    - `Append`: Daily noteへメモを追記します。
    - `Append and Open`: メモを追記し、Obsidianで対象ノートを開きます。
 
+Daily noteがまだ存在しない場合でも、Obsidian CLIの `daily:append` によりDaily noteが作成されてからメモが追記されます。ObsidianのTemplates設定を使っている場合は、テンプレート適用後に追記されます。
+
 異なるVaultや別の形式でメモを残したい場合は、`[custom/*]` セクションを増やしてラベルやテンプレートを分けてください。
 
 ## 設定
@@ -38,7 +40,7 @@ Thino：https://github.com/Quorafind/Obsidian-Thino
 - `vault_name`: Obsidian CLIで使用するVault名。
 - `memo_format`: `{MEMO}` を使ったメモテンプレート。Pythonの `strftime` 構文をサポート。デフォルトは `[%Y-%m-%d %H:%M] {MEMO}`。
 - `target_heading`: 追記先の見出し。空の場合はDaily noteへ直接追記します。
-- `ensure_blank_line`: `yes` のとき、追記前に空行を挿入します。
+- `append_newline`: `yes` のとき、追記するメモの後に改行を入れます。
 
 `memo_format` は日時に `strftime` の `%H:%M` などを使い、入力メモの差し込みに `{MEMO}` を使います。波括弧を文字として出力したい場合は、Python format のルールに従って `{{Memo}}` のように二重に書きます。
 

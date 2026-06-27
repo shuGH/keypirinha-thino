@@ -3,6 +3,7 @@
 import datetime
 import os
 import re
+import subprocess
 
 import keypirinha as kp
 import keypirinha_util as kpu
@@ -26,7 +27,7 @@ class Thino(kp.Plugin):
     必須： Obsidian CLIを使用するため有効にすること（参考：https://obsidian.md/ja/help/cli）
     """
 
-    _debug = True
+    _debug = False
 
     # 設定項目名
     Section = namedtuple(
@@ -37,7 +38,7 @@ class Thino(kp.Plugin):
             "vault_name",
             "memo_format",
             "target_heading",
-            "ensure_blank_line"
+            "append_newline"
         )
     )
 
@@ -199,7 +200,7 @@ class Thino(kp.Plugin):
                 settings.get_stripped("vault_name", section=section_label, fallback=self.DEFAULT_SECTION.vault_name),
                 settings.get_stripped("memo_format", section=section_label, fallback=self.DEFAULT_SECTION.memo_format),
                 settings.get_stripped("target_heading", section=section_label, fallback=self.DEFAULT_SECTION.target_heading),
-                settings.get_bool("ensure_blank_line", section=section_label, fallback=self.DEFAULT_SECTION.ensure_blank_line)
+                settings.get_bool("append_newline", section=section_label, fallback=self.DEFAULT_SECTION.append_newline)
             )
 
         self._sections = []
@@ -254,6 +255,56 @@ class Thino(kp.Plugin):
     # メモの追記
     def _append_memo(self, section, memo, needs_open):
         formatted = self._format_memo(section, memo)
-        self.dbg("Append memo: {}".format(formatted))
-        self.dbg("Open after append: {}".format(needs_open))
+        content = "- {}{}".format(formatted, "\\n" if section.append_newline else "")
+
+        # @NOTE: daily:append は Dailynote が存在しない場合でも作成して追記する（テンプレートも適用される）
+        args = [
+            # @NOTE: 拡張子なしの obsidian は subprocess からだと Obsidian.exe を起動するため、CLI用の Obsidian.com を明示する
+            "obsidian.com",
+            "vault={}".format(section.vault_name),
+            "daily:append",
+            "content={}".format(content),
+            "inline"
+        ]
+        if needs_open:
+            args.append("open")
+
+        self._run_obsidian_cli(args)
+
+    # Obsidian CLIを実行
+    def _run_obsidian_cli(self, args):
+        self.dbg("Obsidian CLI args: {}".format(args))
+        self.info("Obsidian CLI args: {}".format(args))
+
+        if not self._debug:
+            startupinfo = None
+            if os.name == "nt":
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = 0
+
+            try:
+                result = subprocess.run(
+                    args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                    startupinfo=startupinfo
+                )
+            except Exception as exc:
+                self.warn("Failed to run Obsidian CLI: {}".format(exc))
+                return False
+
+            if result.returncode:
+                self.warn("Failed at Obsidian CLI: returncode={}, stdout={}, stderr={}".format(
+                    result.returncode,
+                    result.stdout.strip(),
+                    result.stderr.strip()
+                ))
+                return False
+
+            output = result.stdout.strip()
+            self.info("Done: {}, {}".format(args, output))
+
+        return True
 
