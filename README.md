@@ -65,11 +65,12 @@ See `thino.ini` file for details.
 
 ## License
 
-This package is distributed under the terms of the [MIT](https://github.com/shuGH/keypirinha-thino/blob/master/LICENSE) license.
+This package is distributed under the terms of the [MIT](https://github.com/shuGH/keypirinha-thino?tab=MIT-1-ov-file) license.
 
 ## Author
 
 [Shuzo.Iwasaki](https://github.com/shuGH)
+
 ※ This package is developed with AI-assisted coding.
 
 ( • ̀ω•́ )و enjoy!
