@@ -4,6 +4,14 @@
 
 KeypirinhaからObsidian/Thinoスタイルのメモづくりを支援するプラグインです。`Thino:` などのラベルでメモ入力を受け付け、設定されたフォルダと日付フォーマットに応じた Markdown ファイルの末尾へ、時間付きの一行を追記します。追記後のファイルパスはクリップボードにコピーされるので、Obsidian ですぐに開き直せます。
 
+## リファレンス
+
+公式のリファレンスを参考にすること
+
+- Keypirinha：https://keypirinha.com/api.html
+- Obsidian CLI：https://obsidian.md/ja/help/cli
+- Thino：https://github.com/Quorafind/Obsidian-Thino
+
 ## READMEとの整合
 
 1. インストール・配置は README の PackageControl の指示と `ThinoMemo.keypirinha-package` の手動コピーの両方を想定しています。

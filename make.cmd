@@ -1,11 +1,11 @@
 @echo off
 setlocal
 
-set PACKAGE_NAME=ThinoMemo
+set PACKAGE_NAME=Thino
 REM set INSTALL_DIR=%APPDATA%\Keypirinha\InstalledPackages
 set INSTALL_DIR=C:\Applications\Keypirinha\portable\Profile\InstalledPackages
 set LIVEPACKAGES_DIR=C:\Applications\Keypirinha\portable\Profile\Packages
-set KEYPIRINHA_SDK_DIRECT=..\Sdk
+set KEYPIRINHA_SDK=..\Sdk
 
 if "%1"=="" goto help
 if "%1"=="-h" goto help
@@ -28,9 +28,9 @@ goto end
 
 :command
 if "%1"=="env" (
-    REM pushd "%~dp0"
-    call "%KEYPIRINHA_SDK_DIRECT%\cmd\kpenv.cmd"
-    REM popd
+    pushd "%~dp0"
+    call "%KEYPIRINHA_SDK%\cmd\kpenv.cmd"
+    popd
     goto end
 )
 

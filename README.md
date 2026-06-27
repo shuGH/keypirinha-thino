@@ -2,6 +2,8 @@
 
 ObsidianのThinoスタイルのメモをKeypirinhaから呼び出すプラグインです。起動して文字を入力すると、指定フォルダ内の当日ファイル（指定した日付書式）にタイムスタンプ付きメモが末尾に追記されます。
 
+Thino：https://github.com/Quorafind/Obsidian-Thino
+
 ## インストール
 
 ### マネージド
@@ -17,6 +19,8 @@ ObsidianのThinoスタイルのメモをKeypirinhaから呼び出すプラグイ
 
 ## 使用方法
 
+0. 必須：Obsidian CLIを使用するため有効にすること
+  - 参考：https://obsidian.md/ja/help/cli
 1. Keypirinhaを起動し、`Thino:` などの設定済みラベルを入力します。
 2. 保存したいメモを入力し、Enterを押します。
 3. 設定されたフォルダ内の当日ファイル（`thino.ini` の `file_path` に従う）に `memo_template` に応じた行が追加され、更新先のファイルパスがクリップボードに複写されます。
