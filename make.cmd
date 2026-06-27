@@ -5,7 +5,7 @@ set PACKAGE_NAME=Thino
 REM set INSTALL_DIR=%APPDATA%\Keypirinha\InstalledPackages
 set INSTALL_DIR=C:\Applications\Keypirinha\portable\Profile\InstalledPackages
 set LIVEPACKAGES_DIR=C:\Applications\Keypirinha\portable\Profile\Packages
-set KEYPIRINHA_SDK=..\Sdk
+set KEYPIRINHA_SDK_DIR=..\Sdk
 
 if "%1"=="" goto help
 if "%1"=="-h" goto help
@@ -29,7 +29,7 @@ goto end
 :command
 if "%1"=="env" (
     pushd "%~dp0"
-    call "%KEYPIRINHA_SDK%\cmd\kpenv.cmd"
+    call "%KEYPIRINHA_SDK_DIR%\cmd\kpenv.cmd"
     popd
     goto end
 )
@@ -59,7 +59,7 @@ if "%1"=="unlive" (
 )
 
 if "%BUILD_DIR%"=="" set BUILD_DIR=%~dp0build
-if "%KEYPIRINHA_SDK%"=="" (
+if "%KEYPIRINHA_SDK_DIR%"=="" (
     echo ERROR: Keypirinha SDK environment not setup.
     echo        Run SDK's "kpenv" script and try again.
     exit /b 1
@@ -73,7 +73,7 @@ if "%1"=="clean" (
 if "%1"=="build" (
     if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
     pushd "%~dp0"
-    call "%KEYPIRINHA_SDK%\cmd\kparch" ^
+    call "%KEYPIRINHA_SDK_DIR%\cmd\kparch" ^
         "%BUILD_DIR%\%PACKAGE_NAME%.keypirinha-package" ^
         -r LICENSE* README* src
     popd
@@ -92,7 +92,7 @@ if "%1"=="install" (
 if "%1"=="dev" (
     if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
     pushd "%~dp0"
-    call "%KEYPIRINHA_SDK%\cmd\kparch" ^
+    call "%KEYPIRINHA_SDK_DIR%\cmd\kparch" ^
         "%BUILD_DIR%\%PACKAGE_NAME%.keypirinha-package" ^
         -r LICENSE* README* src
     popd
@@ -106,7 +106,7 @@ if "%1"=="dev" (
 )
 
 if "%1"=="py" (
-    call "%KEYPIRINHA_SDK%\cmd\kpy" %2 %3 %4 %5 %6 %7 %8 %9
+    call "%KEYPIRINHA_SDK_DIR%\cmd\kpy" %2 %3 %4 %5 %6 %7 %8 %9
     goto end
 )
 
