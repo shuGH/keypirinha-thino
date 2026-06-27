@@ -1,61 +1,75 @@
 # Keypirinha Plugin: Thino
 
-ObsidianのThinoスタイルのメモをKeypirinhaから呼び出すプラグインです。起動して文字を入力すると、Obsidian CLI経由で設定したVaultのDaily noteへタイムスタンプ付きメモを追記します。
+Obsidianの「Thino」スタイルのメモを「Keypirinha」からデイリーノートへ追記するプラグイン
 
-Thino：https://github.com/Quorafind/Obsidian-Thino
+This is a plugin of [Keypirinha](http://keypirinha.com) for appending [Thino](https://github.com/Quorafind/Obsidian-Thino)-style memos to Obsidian Dailynotes via Obsidian CLI.
 
-## インストール
+![Thino](./screenshot.gif)
 
-### マネージド
+## Install
 
-[PackageControl](https://github.com/ueffel/Keypirinha-PackageControl)から `Thino` をインストールしてください。
+### Managed
 
-### 手動
+Use [PackageControl](https://github.com/ueffel/Keypirinha-PackageControl), a package manager that easy to install third-party packages.
 
-1. 最新の `Thino.keypirinha-package` を [Releases](https://github.com/shuGH/keypirinha-thino/releases) からダウンロードします。
-2. 次の `InstalledPackages` フォルダに移動します。
-   * ポータブルモード: `Keypirinha\portable\Profile\InstalledPackages`
-   * インストールモード: `%APPDATA%\Keypirinha\InstalledPackages`
+### Manually
 
-## 使用方法
+1. Download the latest `Thino.keypirinha-package` file from [Release](https://github.com/shuGH/keypirinha-thino/releases).
+2. Move it to the `InstalledPackage` folder located at:
+    * `Keypirinha\portable\Profile\InstalledPackages` in **Portable mode**
+    * `%APPDATA%\Keypirinha\InstalledPackages` in **Installed mode**
 
-0. 必須：Obsidian CLIを使用するため有効にすること
-  - 参考：https://obsidian.md/ja/help/cli
-1. Keypirinhaを起動し、`Thino:` などの設定済みラベルを入力します。
-2. 保存したいメモを入力します。
-3. `Append` または `Append and Open` を実行します。
-   - `Append`: Daily noteへメモを追記します。
-   - `Append and Open`: メモを追記し、Obsidianで対象ノートを開きます。
+## Usage
 
-Daily noteがまだ存在しない場合でも、Obsidian CLIの `daily:append` によりDaily noteが作成されてからメモが追記されます。ObsidianのTemplates設定を使っている場合は、テンプレート適用後に追記されます。
+1. Obsidian CLIを有効にしてください
+   - cf. https://obsidian.md/ja/help/cli
+2. Keypirinhaを起動し、`Thino:` などの設定済みラベルを入力します
+3. 保存したいメモを入力します
+4. `Append` または `Append and Open` を実行します
+   - `Append`: Dailynoteへメモを追記します
+   - `Append and Open`: メモを追記し、Obsidianで対象ノートを開きます
 
-異なるVaultや別の形式でメモを残したい場合は、`[custom/*]` セクションを増やしてラベルやテンプレートを分けてください。
+Dailynoteが存在しない場合でも、Obsidian CLIの `daily:append` によりDailynoteが作成されてからメモが追記されます
 
-## 設定
+1. Enable Obsidian CLI.
+   - cf. https://help.obsidian.md/cli
+2. Launch Keypirinha and type `Thino:` or another configured label.
+3. Type your memo.
+4. Execute `Append` or `Append and Open`.
+   - `Append`: Append memo to Dailynote.
+   - `Append and Open`: Append memo and open the Dailynote in Obsidian.
 
-`thino.ini` の `[main]` もしくは `[custom/*]` セクションで以下を調整できます。
+Even if a Dailynote does not exist, it will be created via Obsidian CLI `daily:append` and then the memo will be appended.
 
-- `enabled`: この項目を有効にするかどうか。
-- `item_label`: Keypirinhaに表示するラベル。
-- `vault_name`: Obsidian CLIで使用するVault名。
-- `memo_format`: `{MEMO}` を使ったメモテンプレート。Pythonの `strftime` 構文をサポート。デフォルトは `[%Y-%m-%d %H:%M] {MEMO}`。
-- `target_heading`: 追記先の見出し。空の場合はDaily noteへ直接追記します。
-- `append_newline`: `yes` のとき、追記するメモの後に改行を入れます。
+## Configure
 
-`memo_format` は日時に `strftime` の `%H:%M` などを使い、入力メモの差し込みに `{MEMO}` を使います。波括弧を文字として出力したい場合は、Python format のルールに従って `{{Memo}}` のように二重に書きます。
+Vault名、メモ形式、改行ルールなどを設定できます
+詳細は `thino.ini` ファイルを参照してください
 
-## チェンジログ
+- `memo_format` は Python の `strftime` 構文および `{MEMO}` の置換ホルダーをサポートします、中括弧をそのまま出力したい場合は `{{}}` のように二重にしてください
+- 異なる Vault や別の形式でメモを残したい場合は、`[custom/*]` セクションを増やしてラベルやフォーマットを分けてください
+- `target_heading` による見出し配下への追記と、Dailynote 末尾の空行状態に応じたメモ前空行の制御は、今後の拡張予定です
+
+You can set Vault name, memo format, newline behavior and more.
+See `thino.ini` file for details.
+
+- `memo_format` supports Python `strftime` syntax and `{MEMO}` replaceholder. Use double braces like `{{}}` when you want to output braces literally.
+- To use different Vaults or different memo formats, add additional `[custom/*]` sections and separate labels and formats accordingly.
+- Appending under a heading via `target_heading`, and controlling blank lines before the memo depending on the state of the Dailynote, are planned future features.
+
+## Change Log
 
 ### v1.0
 
-- Obsidian CLIを使い、Daily noteへThinoスタイルのメモを追記する基本機能を実装。
+* Added basic feature to append Thino-style memo to Obsidian Dailynote via Obsidian CLI.
 
-## ライセンス
+## License
 
-このパッケージは [MIT](LICENSE) ライセンスのもとで配布されています。
+This package is distributed under the terms of the [MIT](https://github.com/shuGH/keypirinha-thino/blob/master/LICENSE) license.
 
-## 作者
+## Author
 
 [Shuzo.Iwasaki](https://github.com/shuGH)
+※ This package is developed with AI-assisted coding.
 
 ( • ̀ω•́ )و enjoy!

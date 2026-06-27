@@ -37,6 +37,7 @@ class Thino(kp.Plugin):
             "item_label",
             "vault_name",
             "memo_format",
+            # @TODO: ヘッダーに対応する
             "target_heading",
             "append_newline"
         )
@@ -134,7 +135,7 @@ class Thino(kp.Plugin):
         # Sort.NONE：候補を並び替えない
         suggestion = self.create_item(
             category=self.ITEM_CAT_ACTION,
-            label="Memo: {}".format(self._format_memo(section, memo)),
+            label="{}".format(self._format_memo(section, memo)),
             short_desc="Append memo to dailynote. ({}): {}".format(section.vault_name, section.target_heading),
             target=str(section_index),
             args_hint=kp.ItemArgsHint.FORBIDDEN,
@@ -274,37 +275,34 @@ class Thino(kp.Plugin):
     # Obsidian CLIを実行
     def _run_obsidian_cli(self, args):
         self.dbg("Obsidian CLI args: {}".format(args))
-        self.info("Obsidian CLI args: {}".format(args))
 
-        if not self._debug:
-            startupinfo = None
-            if os.name == "nt":
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = 0
+        startupinfo = None
+        if os.name == "nt":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0
 
-            try:
-                result = subprocess.run(
-                    args,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    universal_newlines=True,
-                    startupinfo=startupinfo
-                )
-            except Exception as exc:
-                self.warn("Failed to run Obsidian CLI: {}".format(exc))
-                return False
+        try:
+            result = subprocess.run(
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                startupinfo=startupinfo
+            )
+        except Exception as exc:
+            self.warn("Failed to run Obsidian CLI: {}".format(exc))
+            return False
 
-            if result.returncode:
-                self.warn("Failed at Obsidian CLI: returncode={}, stdout={}, stderr={}".format(
-                    result.returncode,
-                    result.stdout.strip(),
-                    result.stderr.strip()
-                ))
-                return False
+        if result.returncode:
+            self.warn("Obsidian CLI failed: returncode={}, stdout={}, stderr={}".format(
+                result.returncode,
+                result.stdout.strip(),
+                result.stderr.strip()
+            ))
+            return False
 
-            output = result.stdout.strip()
-            self.info("Done: {}, {}".format(args, output))
+        self.info("Done: {}, {}".format(args, result.stdout.strip()))
 
         return True
 
