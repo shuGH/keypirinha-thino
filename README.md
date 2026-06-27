@@ -36,9 +36,11 @@ Thino：https://github.com/Quorafind/Obsidian-Thino
 - `enabled`: この項目を有効にするかどうか。
 - `item_label`: Keypirinhaに表示するラベル。
 - `vault_name`: Obsidian CLIで使用するVault名。
-- `memo_format`: `{memo}` を使ったメモテンプレート。Pythonの `strftime` 構文をサポート。デフォルトは `[%Y-%m-%d %H:%M] {memo}`。
+- `memo_format`: `{MEMO}` を使ったメモテンプレート。Pythonの `strftime` 構文をサポート。デフォルトは `[%Y-%m-%d %H:%M] {MEMO}`。
 - `target_heading`: 追記先の見出し。空の場合はDaily noteへ直接追記します。
 - `ensure_blank_line`: `yes` のとき、追記前に空行を挿入します。
+
+`memo_format` は日時に `strftime` の `%H:%M` などを使い、入力メモの差し込みに `{MEMO}` を使います。波括弧を文字として出力したい場合は、Python format のルールに従って `{{Memo}}` のように二重に書きます。
 
 ## チェンジログ
 

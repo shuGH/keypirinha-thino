@@ -54,7 +54,7 @@ class Thino(kp.Plugin):
     # カテゴリ：アクション
     ITEM_CAT_ACTION = kp.ItemCategory.USER_BASE + 1
 
-    DEFAULT_SECTION = Section(True, "Thino:", "Memos", "%H:%M:%S {memo}", "", True)
+    DEFAULT_SECTION = Section(True, "Thino:", "Memos", "%H:%M:%S {MEMO}", "", True)
 
     _sections = []
 
@@ -213,9 +213,20 @@ class Thino(kp.Plugin):
             self._sections.append(create_section(section_label))
             name_text = "{}, {}".format(name_text, section_name)
 
-        self.dbg("Loaded Config sections: {}".format(name_text))
+        self.dbg("Loaded config sections: {}".format(name_text))
 
     # メモをフォーマットする
-    def _format_memo(self, section, memo):
-        # @TODO: 設定をもとにフォーマットを実装する
-        return memo
+    def _format_memo(self, section, memo, now=None):
+        if now is None:
+            now = datetime.datetime.now()
+
+        # strftime の日時書式と Python format の {MEMO} を使う
+        try:
+            memo_format = now.strftime(section.memo_format)
+            formatted = memo_format.format(MEMO=memo)
+        except Exception as exc:
+            self.warn("Failed to format memo: {}".format(exc))
+            return memo
+
+        self.dbg("Formatted memo: {}".format(formatted))
+        return formatted
