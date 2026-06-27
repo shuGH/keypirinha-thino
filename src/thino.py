@@ -87,9 +87,19 @@ class Thino(kp.Plugin):
     def on_catalog(self):
         self._read_config()
 
+        def create_desc(vault_name, target_heading):
+            if len(target_heading):
+                short_desc = "Append Memo ({}): {}".format(vault_name, target_heading)
+            else:
+                short_desc = "Append Memo ({})".format(vault_name)
+            return short_desc
+
         # 項目を追加
         catalog = []
         for index, section in enumerate(self._sections):
+            if not section.enabled:
+                continue
+
             # CatalogItem
             # category  : CatalogItemの種類（実行時に参照できる、KEYWORD、FILE、URL、ERROR、USER_BASE：プラグイン独自カテゴリの開始値）
             # label     : 検索結果に表示する名前
@@ -101,7 +111,7 @@ class Thino(kp.Plugin):
                 self.create_item(
                     category=self.ITEM_CAT_KEYWORD,
                     label=section.item_label,
-                    short_desc="Append Memo ({}): {}".format(section.vault_name, section.target_heading),
+                    short_desc=create_desc(section.vault_name, section.target_heading),
                     target=str(index),
                     args_hint=kp.ItemArgsHint.REQUIRED,
                     hit_hint=kp.ItemHitHint.NOARGS
@@ -156,7 +166,7 @@ class Thino(kp.Plugin):
                 settings.get_stripped("vault_name", section=section_label, fallback=self.DEFAULT_SECTION.vault_name),
                 settings.get_stripped("memo_format", section=section_label, fallback=self.DEFAULT_SECTION.memo_format),
                 settings.get_stripped("target_heading", section=section_label, fallback=self.DEFAULT_SECTION.target_heading),
-                settings.get_stripped("ensure_blank_line", section=section_label, fallback=self.DEFAULT_SECTION.ensure_blank_line)
+                settings.get_bool("ensure_blank_line", section=section_label, fallback=self.DEFAULT_SECTION.ensure_blank_line)
             )
 
         self._sections = []
