@@ -1,6 +1,6 @@
-# Keypirinha Plugin: Thino Memo
+# Keypirinha Plugin: Thino
 
-ObsidianのThinoスタイルのメモをKeypirinhaから呼び出すプラグインです。起動して文字を入力すると、指定フォルダ内の当日ファイル（指定した日付書式）にタイムスタンプ付きメモが末尾に追記されます。
+ObsidianのThinoスタイルのメモをKeypirinhaから呼び出すプラグインです。起動して文字を入力すると、Obsidian CLI経由で設定したVaultのDaily noteへタイムスタンプ付きメモを追記します。
 
 Thino：https://github.com/Quorafind/Obsidian-Thino
 
@@ -8,11 +8,11 @@ Thino：https://github.com/Quorafind/Obsidian-Thino
 
 ### マネージド
 
-[PackageControl](https://github.com/ueffel/Keypirinha-PackageControl)から `ThinoMemo` をインストールしてください。
+[PackageControl](https://github.com/ueffel/Keypirinha-PackageControl)から `Thino` をインストールしてください。
 
 ### 手動
 
-1. 最新の `ThinoMemo.keypirinha-package` を [Releases](https://github.com/shuGH/keypirinha-thino/releases) からダウンロードします。
+1. 最新の `Thino.keypirinha-package` を [Releases](https://github.com/shuGH/keypirinha-thino/releases) からダウンロードします。
 2. 次の `InstalledPackages` フォルダに移動します。
    * ポータブルモード: `Keypirinha\portable\Profile\InstalledPackages`
    * インストールモード: `%APPDATA%\Keypirinha\InstalledPackages`
@@ -22,27 +22,29 @@ Thino：https://github.com/Quorafind/Obsidian-Thino
 0. 必須：Obsidian CLIを使用するため有効にすること
   - 参考：https://obsidian.md/ja/help/cli
 1. Keypirinhaを起動し、`Thino:` などの設定済みラベルを入力します。
-2. 保存したいメモを入力し、Enterを押します。
-3. 設定されたフォルダ内の当日ファイル（`thino.ini` の `file_path` に従う）に `memo_template` に応じた行が追加され、更新先のファイルパスがクリップボードに複写されます。
-  - 該当ファイルがない場合は `note_template` にもとづいた新規作成されます
+2. 保存したいメモを入力します。
+3. `Append` または `Append and Open` を実行します。
+   - `Append`: Daily noteへメモを追記します。
+   - `Append and Open`: メモを追記し、Obsidianで対象ノートを開きます。
 
-異なるフォルダや別の形式でメモを残したい場合は、`[custom_item/*]` セクションを増やしてラベルやテンプレートを分けてください。
+異なるVaultや別の形式でメモを残したい場合は、`[custom/*]` セクションを増やしてラベルやテンプレートを分けてください。
 
 ## 設定
 
-`thino.ini` の `[defaults]` もしくは `[custom_item/*]` セクションで以下を調整できます。
+`thino.ini` の `[main]` もしくは `[custom/*]` セクションで以下を調整できます。
 
-- `folder`（必須）: ObsidianのVaultやノートルート。環境変数 `${env:HOME}` などの展開をサポートします。
-- `file_path`: メモを追記するファイルパス。Pythonの `strftime` 構文をサポート。デフォルトは `%Y/%m/%Y-%m-%d.md`。
-- `memo_template`: `{memo}` を使ったメモテンプレート。Pythonの `strftime` 構文をサポート。デフォルトは `[%Y-%m-%d %H:%M] {memo}`。
-- `note_template`: ファイルが存在しないときの新規作成する内容。
-- `ensure_blank_line`: `yes` のとき、既存ファイルが空でない場合に空行を挿入してから追記します。
+- `enabled`: この項目を有効にするかどうか。
+- `item_label`: Keypirinhaに表示するラベル。
+- `vault_name`: Obsidian CLIで使用するVault名。
+- `memo_format`: `{memo}` を使ったメモテンプレート。Pythonの `strftime` 構文をサポート。デフォルトは `[%Y-%m-%d %H:%M] {memo}`。
+- `target_heading`: 追記先の見出し。空の場合はDaily noteへ直接追記します。
+- `ensure_blank_line`: `yes` のとき、追記前に空行を挿入します。
 
 ## チェンジログ
 
 ### v1.0
 
-- Obsidian ThinoスタイルのメモをKeypirinhaからファイル末尾へ追記する基本機能を実装。
+- Obsidian CLIを使い、Daily noteへThinoスタイルのメモを追記する基本機能を実装。
 
 ## ライセンス
 
