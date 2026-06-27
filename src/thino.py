@@ -54,21 +54,18 @@ class Thino(kp.Plugin):
     # カテゴリ：アクション
     ITEM_CAT_ACTION = kp.ItemCategory.USER_BASE + 1
 
-    DEFAULT_SECTION = Section(True, "Thino:", "Memos", "[%Y-%m-%d %H:%M] {memo}", "", True)
+    DEFAULT_SECTION = Section(True, "Thino:", "Memos", "%H:%M:%S {memo}", "", True)
 
     _sections = []
-    _memo = None
 
     # 初期化
     def __init__(self):
         super().__init__()
         self._sections = []
-        self._memo = None
 
     # 起動時
     def on_start(self):
         self._read_config()
-        self._memo = None
 
         # アクションを追加
         actions = [
@@ -87,13 +84,6 @@ class Thino(kp.Plugin):
     def on_catalog(self):
         self._read_config()
 
-        def create_desc(vault_name, target_heading):
-            if len(target_heading):
-                short_desc = "Append Memo ({}): {}".format(vault_name, target_heading)
-            else:
-                short_desc = "Append Memo ({})".format(vault_name)
-            return short_desc
-
         # 項目を追加
         catalog = []
         for index, section in enumerate(self._sections):
@@ -106,12 +96,12 @@ class Thino(kp.Plugin):
             # short_desc: 検索結果に表示する説明文
             # target    : 任意のデータ（実行時に参照できる）
             # args_hint : 追加入力の要否（FORBIDDEN：なし、ACCEPTED：どちらでも、REQUIRED：必須）
-            # hit_hint  : 検索時のヒット方法（追加入力も含めて検索対象にするかなど、通常はNOARGS）
+            # hit_hint  : 検索時の履歴参照方法（履歴にどう残すか、IGNORE：履歴に残さない、NOARGS：残すが入力内容は含めない、KEEPALL：残すし入力内容も含める）
             catalog.append(
                 self.create_item(
                     category=self.ITEM_CAT_KEYWORD,
                     label=section.item_label,
-                    short_desc=create_desc(section.vault_name, section.target_heading),
+                    short_desc="Append Memo ({}): {}".format(section.vault_name, section.target_heading),
                     target=str(index),
                     args_hint=kp.ItemArgsHint.REQUIRED,
                     hit_hint=kp.ItemHitHint.NOARGS
@@ -125,9 +115,44 @@ class Thino(kp.Plugin):
         if not items_chain:
             return 0
 
+        def get_section(item):
+            try:
+                section_index = int(item.target())
+            except ValueError:
+                return None, None
+
+            if section_index < 0 or section_index >= len(self._sections):
+                return None, None
+
+            return section_index, self._sections[section_index]
+
         last_item = items_chain[-1]
-        # @TODO: Suggestionsを作成する
-        # self.set_suggestions([suggestion], kp.Match.ANY, kp.Sort.SCORE_DESC)
+        memo = user_input.strip()
+        section_index, section = get_section(last_item)
+
+        # バリデーション
+        if not len(memo):
+            self.set_suggestions([], kp.Match.ANY, kp.Sort.NONE)
+            return 0
+
+        if section is None:
+            self.set_suggestions([], kp.Match.ANY, kp.Sort.NONE)
+            return 0
+
+        # 候補を設定
+        # Match.ANY：どんな入力でも候補として出してよい
+        # Sort.NONE：候補を並び替えない
+        suggestion = self.create_item(
+            category=self.ITEM_CAT_ACTION,
+            label="Memo: {}".format(self._format_memo(section, memo)),
+            short_desc="Append memo to dailynote. ({}): {}".format(section.vault_name, section.target_heading),
+            target=str(section_index),
+            args_hint=kp.ItemArgsHint.FORBIDDEN,
+            hit_hint=kp.ItemHitHint.NOARGS,
+            data_bag=memo
+        )
+        self.set_suggestions([suggestion], kp.Match.ANY, kp.Sort.NONE)
+
         return 1
 
     # アイテム選択時
@@ -190,4 +215,7 @@ class Thino(kp.Plugin):
 
         self.dbg("Loaded Config sections: {}".format(name_text))
 
-
+    # メモをフォーマットする
+    def _format_memo(self, section, memo):
+        # @TODO: 設定をもとにフォーマットを実装する
+        return memo
