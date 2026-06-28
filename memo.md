@@ -25,14 +25,15 @@
 - [x] `on_execute` 実装 ✅ 2026-06-27
 - [x] Obsidian CLI 呼び出しヘルパー追加 ✅ 2026-06-27
 - [x] 細部調整と実機確認 ✅ 2026-06-27
-- [ ] test の整理
+- [x] test の整理 ✅ 2026-06-28
 - [ ] 空行チェックの追加
 - [ ] `target_heading` 機能の追加
 
 ## テスト
 
-- 現在の `tests/` は旧仕様の補助関数を前提にしているため、一旦保留
-- 実装方針が Obsidian CLI ベースで固まった後、`Thino` クラスと `[main]` / `[custom/*]` 設定に合わせて更新する
+- `tests/test_thino.py` に `Thino` クラス向けの単体テストを集約
+- Obsidian CLI は実行せず、`_run_obsidian_cli` や `subprocess.run` を monkeypatch して引数と戻り値を検証する
+- テスト実行コマンド: `poetry run pytest -q`
 
 ## 調査
 
