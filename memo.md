@@ -39,9 +39,13 @@
 
 ### メモ前後の空行制御
 
-- ini の `append_newline` はメモ末尾の改行追加の有無
+- ini の `append_newline_after_memo` はメモ末尾の改行追加の有無
 - Obsidian CLI の `inline` はメモ前の空行追加の有無
     - Daily note 末尾に既に空行がある場合、`inline` なしで追記するとメモ前に余分な空行が増える可能性がある
+- `[common]` の `ensure_blank_line_before_memo` で、Dailynote 末尾の空行状態に応じた `inline` 指定切替を有効化する
+    - 既定値は `no` とし、通常時の追加 CLI 呼び出しを避ける
+    - 有効時のみ `daily:path` で対象Dailynoteパスを取得し、ファイル末尾を直接読む
+    - Dailynote未作成、パス取得失敗、読取失敗時は安全側として `inline` 指定なしに倒す
 
 ### Obsidian CLI 呼び出し
 

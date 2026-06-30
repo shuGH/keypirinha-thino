@@ -48,16 +48,19 @@ Vault名、メモ形式、改行ルールなどを設定できます
 
 - `memo_format` は Python の `strftime` 構文および `{MEMO}` の置換ホルダーをサポートします、中括弧をそのまま出力したい場合は `{{}}` のように二重にしてください
 - 異なる Vault や別の形式でメモを残したい場合は、`[custom/*]` セクションを増やしてラベルやフォーマットを分けてください
-- `target_heading` による見出し配下への追記と、Dailynote 末尾の空行状態に応じたメモ前空行の制御は、今後の拡張予定です
 
 You can set Vault name, memo format, newline behavior and more.
 See `thino.ini` file for details.
 
 - `memo_format` supports Python `strftime` syntax and `{MEMO}` replaceholder. Use double braces like `{{}}` when you want to output braces literally.
 - To use different Vaults or different memo formats, add additional `[custom/*]` sections and separate labels and formats accordingly.
-- Appending under a heading via `target_heading`, and controlling blank lines before the memo depending on the state of the Dailynote, are planned future features.
 
 ## Change Log
+
+### v1.1
+
+* Added optional blank line control before memo based on Dailynote trailing blank line.
+* Renamed `append_newline` setting to `append_newline_after_memo` with backward compatibility.
 
 ### v1.0
 

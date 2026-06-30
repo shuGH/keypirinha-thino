@@ -39,10 +39,17 @@ class Thino(kp.Plugin):
             "memo_format",
             # @TODO: ヘッダーに対応する
             "target_heading",
-            "append_newline"
+            "append_newline_after_memo"
+        )
+    )
+    Commons = namedtuple(
+        "Commons",
+        (
+            "ensure_blank_line_before_memo",
         )
     )
 
+    CONFIG_SECTION_COMMON = "common"
     CONFIG_SECTION_MAIN = "main"
     CONFIG_SECTION_CUSTOM = "custom"
 
@@ -57,12 +64,15 @@ class Thino(kp.Plugin):
     ITEM_CAT_ACTION = kp.ItemCategory.USER_BASE + 1
 
     DEFAULT_SECTION = Section(True, "Thino:", "Memos", "%H:%M:%S {MEMO}", "", True)
+    DEFAULT_COMMONS = Commons(False)
 
+    _commons = DEFAULT_COMMONS
     _sections = []
 
     # 初期化
     def __init__(self):
         super().__init__()
+        self._commons = self.DEFAULT_COMMONS
         self._sections = []
 
     # 起動時
@@ -161,11 +171,22 @@ class Thino(kp.Plugin):
             self.warn("Invalid section: {}".format(item.target()))
             return 0
 
+        # inline指定の要否を判定
+        def needs_inline():
+            if not self._commons.ensure_blank_line_before_memo:
+                return True
+
+            note_path = self._get_daily_note_path(section)
+            if not note_path:
+                return False
+
+            return self._has_trailing_blank_line(note_path)
+
         # アクションの分岐
         if action_name == self.ACTION_APPEND:
-            self._append_memo(section, memo, False)
+            self._append_memo(section, memo, needs_inline(), False)
         elif action_name == self.ACTION_APPEND_AND_OPEN:
-            self._append_memo(section, memo, True)
+            self._append_memo(section, memo, needs_inline(), True)
         else:
             self.warn("Unknown action: {}".format(action_name))
             return 0
@@ -193,17 +214,35 @@ class Thino(kp.Plugin):
     def _read_config(self):
         settings = self.load_settings()
 
+        # 共通設定の読み込み
+        def read_common():
+            return self.Commons(
+                settings.get_bool(
+                    "ensure_blank_line_before_memo",
+                    section=self.CONFIG_SECTION_COMMON,
+                    fallback=self.DEFAULT_COMMONS.ensure_blank_line_before_memo
+                )
+            )
+
         # 項目の作成
         def create_section(section_label):
+            # 旧設定との互換性維持
+            append_newline_after_memo = settings.get_bool(
+                "append_newline",
+                section=section_label,
+                fallback=self.DEFAULT_SECTION.append_newline_after_memo
+            )
+
             return self.Section(
                 settings.get_bool("enabled", section=section_label, fallback=self.DEFAULT_SECTION.enabled),
                 settings.get_stripped("item_label", section=section_label, fallback=self.DEFAULT_SECTION.item_label),
                 settings.get_stripped("vault_name", section=section_label, fallback=self.DEFAULT_SECTION.vault_name),
                 settings.get_stripped("memo_format", section=section_label, fallback=self.DEFAULT_SECTION.memo_format),
                 settings.get_stripped("target_heading", section=section_label, fallback=self.DEFAULT_SECTION.target_heading),
-                settings.get_bool("append_newline", section=section_label, fallback=self.DEFAULT_SECTION.append_newline)
+                settings.get_bool("append_newline_after_memo", section=section_label, fallback=append_newline_after_memo)
             )
 
+        self._commons = read_common()
         self._sections = []
         name_text = ""
 
@@ -254,9 +293,9 @@ class Thino(kp.Plugin):
         return formatted
 
     # メモの追記
-    def _append_memo(self, section, memo, needs_open):
+    def _append_memo(self, section, memo, needs_inline, needs_open):
         formatted = self._format_memo(section, memo)
-        content = "- {}{}".format(formatted, "\\n" if section.append_newline else "")
+        content = "- {}{}".format(formatted, "\\n" if section.append_newline_after_memo else "")
 
         # @NOTE: daily:append は Dailynote が存在しない場合でも作成して追記する（テンプレートも適用される）
         args = [
@@ -264,19 +303,34 @@ class Thino(kp.Plugin):
             "obsidian.com",
             "vault={}".format(section.vault_name),
             "daily:append",
-            "content={}".format(content),
-            "inline"
+            "content={}".format(content)
         ]
+        if needs_inline:
+            args.append("inline")
+
         if needs_open:
             args.append("open")
 
         self._run_obsidian_cli(args)
+
+    # Daily noteのパスを取得
+    def _get_daily_note_path(self, section):
+        success, output = self._run_obsidian_cli([
+            "obsidian.com",
+            "vault={}".format(section.vault_name),
+            "daily:path"
+        ])
+        if not success:
+            return ""
+
+        return output
 
     # Obsidian CLIを実行
     def _run_obsidian_cli(self, args):
         self.dbg("Obsidian CLI args: {}".format(args))
 
         startupinfo = None
+        # nt: Windows 系OS、posix: macOS/Linux
         if os.name == "nt":
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -292,7 +346,7 @@ class Thino(kp.Plugin):
             )
         except Exception as exc:
             self.warn("Failed to run Obsidian CLI: {}".format(exc))
-            return False
+            return False, ""
 
         if result.returncode:
             self.warn("Obsidian CLI failed: returncode={}, stdout={}, stderr={}".format(
@@ -300,9 +354,29 @@ class Thino(kp.Plugin):
                 result.stdout.strip(),
                 result.stderr.strip()
             ))
-            return False
+            return False, ""
 
         self.info("Done: {}, {}".format(args, result.stdout.strip()))
 
-        return True
+        return True, result.stdout.strip()
+
+    # Dailynote末尾の空行有無を判定
+    def _has_trailing_blank_line(self, note_path):
+        if not os.path.isfile(note_path):
+            self.warn("Dailynote is not found: {}".format(note_path))
+            return False
+
+        if not os.access(note_path, os.R_OK):
+            self.warn("Dailynote is not readable: {}".format(note_path))
+            return False
+
+        try:
+            # rb: バイト列として読む
+            with open(note_path, "rb") as note_file:
+                content = note_file.read()
+        except Exception as exc:
+            self.warn("Failed to read dailynote: {}".format(exc))
+            return False
+
+        return re.search(rb"(?:^|[\r\n])[ \t]*(?:\r\n|\r|\n)\Z", content) is not None
 

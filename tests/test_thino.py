@@ -41,13 +41,16 @@ def make_plugin(settings):
 
 
 DEFAULT_CONFIG = """
+[common]
+ensure_blank_line_before_memo = no
+
 [main]
 enabled = yes
 item_label = Thino:
 vault_name = Memos
 memo_format = %H:%M:%S {MEMO}
 target_heading =
-append_newline = yes
+append_newline_after_memo = yes
 
 [custom/work]
 enabled = yes
@@ -55,8 +58,32 @@ item_label = Thino: Work
 vault_name = Work
 memo_format = %Y-%m-%d %H:%M {MEMO}
 target_heading = ## Memos
-append_newline = no
+append_newline_after_memo = no
 """
+
+
+def test_read_config_loads_common_settings():
+    config = DEFAULT_CONFIG.replace(
+        "ensure_blank_line_before_memo = no",
+        "ensure_blank_line_before_memo = yes",
+    )
+    plugin = make_plugin(make_settings(config))
+
+    plugin._read_config()
+
+    assert plugin._commons.ensure_blank_line_before_memo is True
+
+
+def test_read_config_uses_default_common_settings():
+    config = DEFAULT_CONFIG.replace(
+        "[common]\nensure_blank_line_before_memo = no\n\n",
+        "",
+    )
+    plugin = make_plugin(make_settings(config))
+
+    plugin._read_config()
+
+    assert plugin._commons.ensure_blank_line_before_memo is False
 
 
 def test_read_config_loads_main_and_custom_sections():
@@ -72,7 +99,7 @@ def test_read_config_loads_main_and_custom_sections():
     assert main_section.vault_name == "Memos"
     assert main_section.memo_format == "%H:%M:%S {MEMO}"
     assert main_section.target_heading == ""
-    assert main_section.append_newline is True
+    assert main_section.append_newline_after_memo is True
 
     custom_section = plugin._sections[1]
     assert custom_section.enabled is True
@@ -80,7 +107,20 @@ def test_read_config_loads_main_and_custom_sections():
     assert custom_section.vault_name == "Work"
     assert custom_section.memo_format == "%Y-%m-%d %H:%M {MEMO}"
     assert custom_section.target_heading == "## Memos"
-    assert custom_section.append_newline is False
+    assert custom_section.append_newline_after_memo is False
+
+
+def test_read_config_uses_legacy_append_newline_setting():
+    config = DEFAULT_CONFIG.replace(
+        "append_newline_after_memo = yes",
+        "append_newline = no",
+        1,
+    )
+    plugin = make_plugin(make_settings(config))
+
+    plugin._read_config()
+
+    assert plugin._sections[0].append_newline_after_memo is False
 
 
 def test_read_config_ignores_non_custom_sections():
@@ -162,7 +202,7 @@ item_label = Thino:
 vault_name = Memos
 memo_format = fixed {MEMO}
 target_heading =
-append_newline = yes
+append_newline_after_memo = yes
 """
     plugin = make_plugin(make_settings(config))
     plugin._read_config()
@@ -185,9 +225,10 @@ def test_on_execute_defaults_to_append_action():
     plugin._sections = [thino.Thino.DEFAULT_SECTION]
     called = {}
 
-    def fake_append(section, memo, needs_open):
+    def fake_append(section, memo, needs_inline, needs_open):
         called["section"] = section
         called["memo"] = memo
+        called["needs_inline"] = needs_inline
         called["needs_open"] = needs_open
 
     plugin._append_memo = fake_append
@@ -199,6 +240,7 @@ def test_on_execute_defaults_to_append_action():
     assert called == {
         "section": thino.Thino.DEFAULT_SECTION,
         "memo": "memo",
+        "needs_inline": True,
         "needs_open": False,
     }
 
@@ -208,9 +250,10 @@ def test_on_execute_uses_append_and_open_action():
     plugin._sections = [thino.Thino.DEFAULT_SECTION]
     called = {}
 
-    def fake_append(section, memo, needs_open):
+    def fake_append(section, memo, needs_inline, needs_open):
         called["section"] = section
         called["memo"] = memo
+        called["needs_inline"] = needs_inline
         called["needs_open"] = needs_open
 
     plugin._append_memo = fake_append
@@ -222,7 +265,33 @@ def test_on_execute_uses_append_and_open_action():
     assert result == 1
     assert called["section"] == thino.Thino.DEFAULT_SECTION
     assert called["memo"] == "memo"
+    assert called["needs_inline"] is True
     assert called["needs_open"] is True
+
+
+def test_on_execute_omits_inline_when_dailynote_path_is_unavailable():
+    plugin = thino.Thino()
+    plugin._commons = thino.Thino.Commons(True)
+    plugin._sections = [thino.Thino.DEFAULT_SECTION]
+    called = {}
+
+    def fake_append(section, memo, needs_inline, needs_open):
+        called["section"] = section
+        called["memo"] = memo
+        called["needs_inline"] = needs_inline
+        called["needs_open"] = needs_open
+
+    plugin._append_memo = fake_append
+    plugin._get_daily_note_path = lambda section: ""
+    item = kp.CatalogItem(target="0", data_bag="memo")
+
+    result = plugin.on_execute(item, None)
+
+    assert result == 1
+    assert called["section"] == thino.Thino.DEFAULT_SECTION
+    assert called["memo"] == "memo"
+    assert called["needs_inline"] is False
+    assert called["needs_open"] is False
 
 
 def test_append_memo_builds_cli_args_with_open():
@@ -230,7 +299,7 @@ def test_append_memo_builds_cli_args_with_open():
     section = thino.Thino.DEFAULT_SECTION._replace(
         vault_name="Work",
         memo_format="fixed {MEMO}",
-        append_newline=True,
+        append_newline_after_memo=True,
     )
     called = {}
 
@@ -240,7 +309,7 @@ def test_append_memo_builds_cli_args_with_open():
 
     plugin._run_obsidian_cli = fake_run
 
-    plugin._append_memo(section, "hello", True)
+    plugin._append_memo(section, "hello", True, True)
 
     assert called["args"] == [
         "obsidian.com",
@@ -257,7 +326,7 @@ def test_append_memo_omits_open_and_trailing_newline_when_disabled():
     section = thino.Thino.DEFAULT_SECTION._replace(
         vault_name="Work",
         memo_format="fixed {MEMO}",
-        append_newline=False,
+        append_newline_after_memo=False,
     )
     called = {}
 
@@ -267,7 +336,7 @@ def test_append_memo_omits_open_and_trailing_newline_when_disabled():
 
     plugin._run_obsidian_cli = fake_run
 
-    plugin._append_memo(section, "hello", False)
+    plugin._append_memo(section, "hello", True, False)
 
     assert called["args"] == [
         "obsidian.com",
@@ -278,28 +347,107 @@ def test_append_memo_omits_open_and_trailing_newline_when_disabled():
     ]
 
 
-def test_run_obsidian_cli_returns_true_when_subprocess_succeeds(monkeypatch):
+def test_append_memo_omits_inline_when_disabled_by_argument():
+    plugin = thino.Thino()
+    section = thino.Thino.DEFAULT_SECTION._replace(
+        vault_name="Work",
+        memo_format="fixed {MEMO}",
+    )
+    called = {}
+
+    def fake_run(args):
+        called["args"] = args
+        return True
+
+    plugin._run_obsidian_cli = fake_run
+
+    plugin._append_memo(section, "hello", False, False)
+
+    assert called["args"] == [
+        "obsidian.com",
+        "vault=Work",
+        "daily:append",
+        "content=- fixed hello\\n",
+    ]
+
+
+def test_get_daily_note_path_returns_cli_output():
+    plugin = thino.Thino()
+    section = thino.Thino.DEFAULT_SECTION._replace(vault_name="Work")
+    called = {}
+
+    def fake_run(args):
+        called["args"] = args
+        return True, "Daily/2026-06-30.md"
+
+    plugin._run_obsidian_cli = fake_run
+
+    assert plugin._get_daily_note_path(section) == "Daily/2026-06-30.md"
+    assert called["args"] == [
+        "obsidian.com",
+        "vault=Work",
+        "daily:path",
+    ]
+
+
+def test_get_daily_note_path_returns_empty_when_cli_fails():
+    plugin = thino.Thino()
+    section = thino.Thino.DEFAULT_SECTION._replace(vault_name="Work")
+
+    plugin._run_obsidian_cli = lambda args: (False, "")
+
+    assert plugin._get_daily_note_path(section) == ""
+
+
+def test_has_trailing_blank_line_returns_true_for_lf_blank_line(tmp_path):
+    note_path = tmp_path / "daily.md"
+    note_path.write_bytes(b"# Daily\n\n")
+
+    assert thino.Thino()._has_trailing_blank_line(note_path) is True
+
+
+def test_has_trailing_blank_line_returns_true_for_crlf_blank_line(tmp_path):
+    note_path = tmp_path / "daily.md"
+    note_path.write_bytes(b"# Daily\r\n\r\n")
+
+    assert thino.Thino()._has_trailing_blank_line(note_path) is True
+
+
+def test_has_trailing_blank_line_returns_false_without_blank_line(tmp_path):
+    note_path = tmp_path / "daily.md"
+    note_path.write_bytes(b"# Daily\n")
+
+    assert thino.Thino()._has_trailing_blank_line(note_path) is False
+
+
+def test_has_trailing_blank_line_returns_false_when_read_fails(tmp_path):
+    note_path = tmp_path / "missing.md"
+
+    assert thino.Thino()._has_trailing_blank_line(note_path) is False
+
+
+def test_run_obsidian_cli_returns_success_and_stdout_when_subprocess_succeeds(monkeypatch):
     def fake_run(*args, **kwargs):
         return SimpleNamespace(returncode=0, stdout="ok\n", stderr="")
 
     monkeypatch.setattr(thino.subprocess, "run", fake_run)
 
-    assert thino.Thino()._run_obsidian_cli(["obsidian.com"]) is True
+    assert thino.Thino()._run_obsidian_cli(["obsidian.com"]) == (True, "ok")
 
 
-def test_run_obsidian_cli_returns_false_when_subprocess_raises(monkeypatch):
+def test_run_obsidian_cli_returns_failure_and_empty_output_when_subprocess_raises(monkeypatch):
     def fake_run(*args, **kwargs):
         raise OSError("boom")
 
     monkeypatch.setattr(thino.subprocess, "run", fake_run)
 
-    assert thino.Thino()._run_obsidian_cli(["obsidian.com"]) is False
+    assert thino.Thino()._run_obsidian_cli(["obsidian.com"]) == (False, "")
 
 
-def test_run_obsidian_cli_returns_false_when_subprocess_fails(monkeypatch):
+def test_run_obsidian_cli_returns_failure_and_empty_output_when_subprocess_fails(monkeypatch):
     def fake_run(*args, **kwargs):
         return SimpleNamespace(returncode=1, stdout="", stderr="failed")
 
     monkeypatch.setattr(thino.subprocess, "run", fake_run)
 
-    assert thino.Thino()._run_obsidian_cli(["obsidian.com"]) is False
+    assert thino.Thino()._run_obsidian_cli(["obsidian.com"]) == (False, "")
